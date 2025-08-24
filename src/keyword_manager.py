@@ -6,7 +6,7 @@ import os
 from storage import XBotDetectorDB  # Correctly import the class from 'storage.py'
 
 # Default configuration
-DEFAULT_DATA_FILE = 'data/keywords.json'
+DEFAULT_DATA_FILE = './data/keywords.json'
 
 def load_keywords_from_file(file_path):
     """Loads keywords from a CSV or JSON file based on its extension."""
