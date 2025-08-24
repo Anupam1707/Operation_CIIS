@@ -2,7 +2,11 @@
 import sys
 import csv
 import json
+import os
 from storage import XBotDetectorDB  # Correctly import the class from 'storage.py'
+
+# Default configuration
+DEFAULT_DATA_FILE = 'data/keywords.json'
 
 def load_keywords_from_file(file_path):
     """Loads keywords from a CSV or JSON file based on its extension."""
@@ -44,15 +48,24 @@ def load_keywords_from_file(file_path):
 def main():
     """Main function to parse the data file and load it into MongoDB."""
     
-    # Check if a command-line argument (the file path) was provided
-    if len(sys.argv) < 2:
-        print("\n❌ Error: You must provide the path to the data file.")
-        print("   Usage: python keyword_manager.py data/keywords.json")
-        print("   Usage: python keyword_manager.py data/keywords.csv\n")
-        return  # Exit the script
+    # Use default file path if no command-line argument provided
+    if len(sys.argv) >= 2:
+        input_file_path = sys.argv[1]
+        print(f"Using provided file path: {input_file_path}")
+    else:
+        input_file_path = DEFAULT_DATA_FILE
+        print(f"No file path provided. Using default: {input_file_path}")
     
-    # The file path is the first argument after the script name
-    input_file_path = sys.argv[1]
+    # Check if file exists
+    if not os.path.exists(input_file_path):
+        print(f"\n❌ Error: File not found at '{input_file_path}'")
+        if input_file_path == DEFAULT_DATA_FILE:
+            print("   Please ensure the 'data' directory exists and contains 'keywords.json'")
+        print("\n   Usage examples:")
+        print("   python keyword_manager.py                    # Uses default data/keywords.json")
+        print("   python keyword_manager.py data/my_file.csv   # Uses custom file")
+        print("   python keyword_manager.py data/my_file.json  # Uses custom JSON file\n")
+        return
     
     keywords_to_load = load_keywords_from_file(input_file_path)
     
@@ -60,22 +73,54 @@ def main():
         print("No keywords loaded from file. Exiting.")
         return
     
+    # Show preview of what will be loaded
+    print(f"\n📋 Preview of keywords to be loaded:")
+    for i, keyword in enumerate(keywords_to_load[:5]):  # Show first 5
+        keyword_text = keyword.get('keyword', 'N/A')
+        category = keyword.get('category', 'N/A')
+        print(f"   {i+1}. {keyword_text} [{category}]")
+    
+    if len(keywords_to_load) > 5:
+        print(f"   ... and {len(keywords_to_load) - 5} more keywords")
+    
+    # Ask for confirmation
+    print(f"\n🤔 Ready to load {len(keywords_to_load)} keywords into the database?")
+    confirm = input("   Type 'yes' to continue or 'no' to cancel: ").strip().lower()
+    
+    if confirm not in ['yes', 'y']:
+        print("   ⏸️  Operation cancelled by user.")
+        return
+    
     db_connection = None
     try:
+        print(f"\n🔗 Connecting to database...")
         db_connection = XBotDetectorDB()
-        print(f"\nSyncing {len(keywords_to_load)} keywords with the database...")
+        
+        print(f"📤 Syncing {len(keywords_to_load)} keywords with the database...")
         results = db_connection.add_keywords_bulk(keywords_to_load)
         
-        # Fixed: Use correct keys from the results dictionary
-        print(f"-> Done. Added: {results.get('added', 0)}, Skipped: {results.get('skipped', 0)}.")
+        # Display results
+        print(f"\n✅ Sync completed successfully!")
+        print(f"   📈 Added: {results.get('added', 0)} new keywords")
+        print(f"   ⏭️  Skipped: {results.get('skipped', 0)} duplicates")
+        
+        # Show database stats
+        try:
+            stats = db_connection.get_database_stats()
+            print(f"\n📊 Current database status:")
+            print(f"   Total keywords: {stats['keywords']['total']}")
+            print(f"   Active keywords: {stats['keywords']['active']}")
+        except Exception as e:
+            print(f"   (Could not retrieve database stats: {e})")
         
     except Exception as e:
-        print(f"An error occurred during database operations: {e}")
+        print(f"\n❌ An error occurred during database operations: {e}")
+        print(f"   💡 Please check your MongoDB connection and credentials")
     finally:
         if db_connection:
             db_connection.close_connection()
-            print("\nDatabase connection closed.")
+            print(f"\n🔌 Database connection closed.")
 
-# Fixed: Correct syntax with underscores, not asterisks
+# FIXED: Correct syntax with underscores, not asterisks
 if __name__ == "__main__":
     main()
