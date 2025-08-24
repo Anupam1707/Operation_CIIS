@@ -6,7 +6,7 @@ import torch
 MODEL_NAME = "xlm-roberta-base"
 tokenizer = XLMRobertaTokenizer.from_pretrained(MODEL_NAME)
 
-df = pd.read_csv("data/dataset_processed.csv")
+df = pd.read_csv("./data/dataset_processed.csv")
 
 dataset = Dataset.from_pandas(df)
 def tokenize(batch):
