@@ -1,5 +1,36 @@
-python-dotenv
+# Core
+python-dotenv==1.0.0
 requests
 pandas
-pymongo==4.6.1       
-python-dotenv==1.0.0 
+numpy
+tqdm
+
+# Database
+pymongo==4.6.1
+SQLAlchemy
+
+# Text Cleaning & NLP
+regex
+nltk
+emoji
+indic-nlp-library
+langdetect
+langid
+
+# HuggingFace & Training
+transformers
+datasets
+sentencepiece
+torch
+scikit-learn
+
+# Model Serving
+fastapi
+uvicorn
+flask
+
+# Dashboard (Step 4)
+streamlit
+
+# Utilities
+joblib
