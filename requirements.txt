@@ -34,3 +34,5 @@ streamlit
 
 # Utilities
 joblib
+tweepy
+Flask
