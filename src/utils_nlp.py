@@ -28,12 +28,19 @@ def augment_text(texts, aug_p=0.3):
         logging.error(f"Augmentation failed: {e}")
         return texts
 
-def preprocess_dataset(cleaned_path="../data/cleaned.json", labeled_path="../data/dataset.csv", output_path="../data/dataset_processed.csv"):
+def preprocess_dataset(cleaned_path="data/cleaned_data.json", labeled_path="data/dataset.csv", output_path="data/dataset_processed.csv"):
     logging.info("Starting preprocessing...")
     try:
         cleaned_df = pd.read_json(cleaned_path) if os.path.exists(cleaned_path) else pd.DataFrame()
         labeled_df = pd.read_csv(labeled_path) if os.path.exists(labeled_path) else pd.DataFrame()
-        logging.info(f"Loaded {len(cleaned_df)} rows from cleaned.json, {len(labeled_df)} from dataset.csv")
+        logging.info(f"Loaded {len(cleaned_df)} rows from {cleaned_path}, {len(labeled_df)} from {labeled_path}")
+        if len(cleaned_df) == 0 and len(labeled_df) == 0:
+            logging.warning("No data loaded from cleaned_data.json or dataset.csv. Exiting.")
+            return
+        if not cleaned_df.empty and 'label' not in cleaned_df.columns:
+            cleaned_df['label'] = 0  # Default to neutral
+        elif cleaned_df.empty and not labeled_df.empty:
+            cleaned_df = labeled_df.copy()
     except Exception as e:
         logging.error(f"Error loading files: {e}")
         raise
