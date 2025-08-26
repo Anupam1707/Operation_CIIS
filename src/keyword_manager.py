@@ -3,7 +3,7 @@ import sys
 import csv
 import json
 import os
-from storage import XBotDetectorDB  # Correctly import the class from 'storage.py'
+from storage import MongoHandler  # Correctly import the class from 'storage.py'
 
 # Default configuration
 DEFAULT_DATA_FILE = './data/keywords.json'

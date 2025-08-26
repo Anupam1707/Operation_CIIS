@@ -34,3 +34,4 @@ streamlit
 
 # Utilities
 joblib
+Faker

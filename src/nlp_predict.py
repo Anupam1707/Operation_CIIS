@@ -1,8 +1,9 @@
 import torch
 from transformers import XLMRobertaTokenizer, XLMRobertaForSequenceClassification
 from langdetect import detect
+import argparse
 
-MODEL_PATH = "./models/multilingual_detector"
+MODEL_PATH = "models/multilingual_detector"
 tokenizer = XLMRobertaTokenizer.from_pretrained(MODEL_PATH)
 model = XLMRobertaForSequenceClassification.from_pretrained(MODEL_PATH)
 
@@ -22,5 +23,9 @@ def predict(text: str):
     }
 
 if __name__ == "__main__":
-    sample = "भारत विरोधी ट्वीट"  # Hindi sample
-    print(predict(sample))
+    parser = argparse.ArgumentParser(description="Predict anti-Indian content in a given text.")
+    parser.add_argument("--text", type=str, required=True, help="The text to classify.")
+    args = parser.parse_args()
+
+    prediction = predict(args.text)
+    print(prediction)
