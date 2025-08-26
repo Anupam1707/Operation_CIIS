@@ -30,21 +30,24 @@ def clean_text(text):
     text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
     # Remove emojis
     text = emoji.replace_emoji(text, '')
-    # Remove hashtags and mentions
-    text = re.sub(r'#\w+|@\w+', '', text)
     # Remove special characters and numbers
-    text = re.sub(r'[^\w\s]', '', text)
+    text = re.sub(r'[^\w\s#]', '', text) # Keep hashtags
     text = re.sub(r'\d+', '', text)
     # Lemmatize and remove stopwords
     stop_words = set(stopwords.words('english'))
     lemmatizer = WordNetLemmatizer()
     words = text.lower().split()
-    cleaned_words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words and word.isalnum()]
+    cleaned_words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words and (word.isalnum() or word.startswith('#'))]
     return ' '.join(cleaned_words)
 
-def process_and_export(input_file, output_dir):
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Clean raw post data.")
+    parser.add_argument("--input_file", type=str, default="data/sentiment_data.json", help="Input JSON file with raw posts.")
+    parser.add_argument("--output_dir", type=str, default="data", help="Directory to save cleaned data.")
+    args = parser.parse_args()
+
     # Load raw data
-    with open(input_file, 'r', encoding='utf-8') as f:
+    with open(args.input_file, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
     df = pd.DataFrame(raw_data)
 
@@ -56,29 +59,21 @@ def process_and_export(input_file, output_dir):
     df['cleaned_at'] = datetime.now().isoformat()
 
     # Export to data/ folder
-    os.makedirs(output_dir, exist_ok=True)
-    csv_path = os.path.join(output_dir, 'cleaned_data.csv')
-    json_path = os.path.join(output_dir, 'cleaned_data.json')
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, 'cleaned_sentiment_data.csv')
+    json_path = os.path.join(args.output_dir, 'cleaned_sentiment_data.json')
 
     df.to_csv(csv_path, index=False, encoding='utf-8')
     df.to_json(json_path, orient='records', force_ascii=False, indent=4)
 
     print(f"Exported cleaned data to {csv_path} and {json_path}")
-    return df
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Clean raw post data.")
-    parser.add_argument("--input_file", type=str, default="data/raw_posts.json", help="Input JSON file with raw posts.")
-    parser.add_argument("--output_dir", type=str, default="data", help="Directory to save cleaned data.")
-    args = parser.parse_args()
-
-    cleaned_df = process_and_export(args.input_file, args.output_dir)
 
     # Print before/after for verification (first 5 rows)
     print("\nRaw Data Sample:")
     # Ensure 'text' column exists before trying to print
-    if 'text' in cleaned_df.columns:
-        print(cleaned_df[['text']].head())
+    if 'text' in df.columns:
+        print(df[['text']].head())
     print("\nCleaned Data Sample:")
-    if 'cleaned_text' in cleaned_df.columns:
-        print(cleaned_df[['cleaned_text']].head())
+    if 'cleaned_text' in df.columns:
+        print(df[['cleaned_text']].head())
+

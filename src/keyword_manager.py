@@ -12,7 +12,7 @@ def load_keywords_from_file(file_path):
     """Loads keywords from a CSV or JSON file based on its extension."""
     if not file_path:
         print("Error: No file path provided.")
-        return []
+        return None
     
     print(f"Attempting to load data from: {file_path}")
     
@@ -20,30 +20,35 @@ def load_keywords_from_file(file_path):
         try:
             with open(file_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
-                keywords = [row for row in reader]
+                # Expects 'keyword' and 'category' columns
+                keywords = [{"keyword": row["keyword"], "category": row["category"]} for row in reader]
                 print(f"-> Successfully loaded {len(keywords)} keywords from CSV.")
                 return keywords
         except FileNotFoundError:
             print(f"Error: File not found at '{file_path}'")
         except Exception as e:
             print(f"Error reading CSV: {e}")
-        return []
+        return None
     
     elif file_path.endswith('.json'):
         try:
             with open(file_path, mode='r', encoding='utf-8') as f:
-                keywords = json.load(f)
+                data = json.load(f)
+                keywords = []
+                for category, keyword_list in data.items():
+                    for keyword in keyword_list:
+                        keywords.append({"keyword": keyword, "category": category})
                 print(f"-> Successfully loaded {len(keywords)} keywords from JSON.")
                 return keywords
         except FileNotFoundError:
             print(f"Error: File not found at '{file_path}'")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON file. Please check for formatting errors. Details: {e}")
-        return []
+        return None
         
     else:
         print(f"Error: Unsupported file format for '{file_path}'. Please provide a .csv or .json file.")
-        return []
+        return None
 
 def main():
     """Main function to parse the data file and load it into MongoDB."""
@@ -94,7 +99,7 @@ def main():
     db_connection = None
     try:
         print(f"\n🔗 Connecting to database...")
-        db_connection = XBotDetectorDB()
+        db_connection = MongoHandler()
         
         print(f"📤 Syncing {len(keywords_to_load)} keywords with the database...")
         results = db_connection.add_keywords_bulk(keywords_to_load)
@@ -118,9 +123,10 @@ def main():
         print(f"   💡 Please check your MongoDB connection and credentials")
     finally:
         if db_connection:
-            db_connection.close_connection()
+            db_connection.close()
             print(f"\n🔌 Database connection closed.")
 
 # FIXED: Correct syntax with underscores, not asterisks
 if __name__ == "__main__":
     main()
+

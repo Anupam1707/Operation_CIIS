@@ -53,6 +53,32 @@ class MongoHandler:
             logger.error(f"Error retrieving active keywords: {e}")
             return []
 
+    def add_keywords_bulk(self, keywords: List[Dict[str, str]]) -> Dict[str, int]:
+        """Adds a bulk of keywords to the database, avoiding duplicates."""
+        operations = []
+        for kw in keywords:
+            operations.append(UpdateOne(
+                {"keyword": kw["keyword"]},
+                {"$setOnInsert": {"category": kw["category"], "is_active": True, "last_scraped_at": None}},
+                upsert=True
+            ))
+        
+        try:
+            result = self.keywords_collection.bulk_write(operations, ordered=False)
+            return {"added": result.upserted_count, "skipped": result.matched_count}
+        except errors.BulkWriteError as bwe:
+            logger.error(f"Bulk write error adding keywords: {bwe.details}")
+            return {"added": 0, "skipped": 0}
+
+    def get_database_stats(self) -> Dict[str, Any]:
+        """Returns statistics about the database."""
+        return {
+            "keywords": {
+                "total": self.keywords_collection.count_documents({}),
+                "active": self.keywords_collection.count_documents({"is_active": True})
+            }
+        }
+
     def save_tweets_batch(self, tweets: List[Dict[str, Any]]) -> int:
         """Saves a batch of tweets, ignoring duplicates."""
         if not tweets:
@@ -77,6 +103,10 @@ class MongoHandler:
             {"$set": {"last_scraped_at": datetime.now(timezone.utc)}}
         )
 
+    def close(self):
+        """Closes the database connection."""
+        self.client.close()
+
 if __name__ == "__main__":
     try:
         handler = MongoHandler()
@@ -84,5 +114,6 @@ if __name__ == "__main__":
         # Example: Add a keyword
         # handler.keywords_collection.update_one({"keyword": "india"}, {"$set": {"is_active": True}}, upsert=True)
         # print(handler.get_active_keywords())
+        handler.close()
     except Exception as e:
         print(f"Failed to connect to MongoDB: {e}")

@@ -1,68 +1,19 @@
-
 import pandas as pd
-from datasets import Dataset
-from transformers import XLMRobertaTokenizer, XLMRobertaForSequenceClassification, TrainingArguments, Trainer, EvalPrediction
-import torch
-import numpy as np
 import json
 import os
 from datetime import datetime
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import joblib # For saving/loading models and vectorizers
 
-# Load pre-trained model and tokenizer
-MODEL_NAME = "xlm-roberta-base"
-tokenizer = XLMRobertaTokenizer.from_pretrained(MODEL_NAME)
-
-# --- Data Loading and Preprocessing ---
-
-# Load synthetic data
-with open("data/synthetic_posts.json", "r") as f:
-    synthetic_data = json.load(f)
-
-# Convert to a list of dictionaries with 'text' and 'label' keys
-processed_synthetic_data = []
-for post in synthetic_data:
-    processed_synthetic_data.append({
-        "text": post["data"]["text"],
-        "label": 1 if post["label"] == "anti-indian" else 0
-    })
-
-synthetic_df = pd.DataFrame(processed_synthetic_data)
-
-# Load real data if it exists
-real_data_path = "data/dataset_processed.csv"
-if os.path.exists(real_data_path):
-    real_df = pd.read_csv(real_data_path)
-    # Assuming real_df has 'text' and 'label' columns
-    combined_df = pd.concat([synthetic_df, real_df], ignore_index=True)
-else:
-    combined_df = synthetic_df
-
-dataset = Dataset.from_pandas(combined_df)
-
-def tokenize(batch):
-    return tokenizer(batch["text"], padding="max_length", truncation=True, max_length=128)
-
-dataset = dataset.map(tokenize, batched=True)
-dataset = dataset.rename_column("label", "labels")
-dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
-
-# Split into train and test
-train_test = dataset.train_test_split(test_size=0.2)
-train_dataset = train_test["train"]
-eval_dataset = train_test["test"]
-
-# --- Model and Metrics ---
-
-# Load model
-model = XLMRobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+from src.clean import clean_text # Import clean_text from clean.py
 
 # Compute metrics
-def compute_metrics(pred: EvalPrediction):
-    labels = pred.label_ids
-    preds = np.argmax(pred.predictions, axis=1)
-    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
-    acc = accuracy_score(labels, preds)
+def compute_metrics(y_true, y_pred):
+    precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='binary')
+    acc = accuracy_score(y_true, y_pred)
     return {
         "accuracy": acc,
         "precision": precision,
@@ -70,47 +21,48 @@ def compute_metrics(pred: EvalPrediction):
         "f1": f1,
     }
 
-# --- Training ---
+def run_training():
+    # Load synthetic data
+    with open("data/synthetic_posts.json", "r") as f:
+        synthetic_data = json.load(f)
 
-# Training arguments
-training_args = TrainingArguments(
-    output_dir="./results",
-    evaluation_strategy="epoch",
-    save_strategy="epoch",
-    learning_rate=2e-5,
-    per_device_train_batch_size=16,
-    per_device_eval_batch_size=16,
-    num_train_epochs=3,
-    weight_decay=0.01,
-    logging_dir="./logs",
-    load_best_model_at_end=True,
-    metric_for_best_model="f1",
-)
+    processed_synthetic_data = []
+    for post in synthetic_data:
+        processed_synthetic_data.append({
+            "text": clean_text(post["text"]), # Preprocess text using clean.py
+            "label": 1 if post["label"] == "anti-indian" else 0
+        })
 
-# Trainer setup
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
-    compute_metrics=compute_metrics,
-    tokenizer=tokenizer,
-)
+    synthetic_df = pd.DataFrame(processed_synthetic_data)
 
-if __name__ == "__main__":
-    # Train the model
-    trainer.train()
+    X = synthetic_df["text"]
+    y = synthetic_df["label"]
+
+    # Split into train and test
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # TF-IDF Vectorization
+    vectorizer = TfidfVectorizer(max_features=5000) # Limit features to avoid sparsity
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_test_vec = vectorizer.transform(X_test)
+
+    # Load model
+    model = LogisticRegression(max_iter=1000) # Increased max_iter for convergence
+
+    print("Training Logistic Regression model...")
+    model.fit(X_train_vec, y_train)
 
     # Evaluate and log metrics
-    metrics = trainer.evaluate()
+    y_pred = model.predict(X_test_vec)
+    metrics = compute_metrics(y_test, y_pred)
     print("Evaluation Metrics:", metrics)
 
-    # Save trained model
-    model_path = "models/multilingual_detector"
+    # Save trained model and vectorizer
+    model_path = "models"
     os.makedirs(model_path, exist_ok=True)
-    trainer.save_model(model_path)
-    tokenizer.save_pretrained(model_path)
-    print(f"Saved model to {model_path}")
+    joblib.dump(model, os.path.join(model_path, "logistic_regression_model.pkl"))
+    joblib.dump(vectorizer, os.path.join(model_path, "tfidf_vectorizer.pkl"))
+    print(f"Saved model and vectorizer to {model_path}")
 
     # Generate evaluation report
     report_path = "reports"
@@ -119,13 +71,18 @@ if __name__ == "__main__":
         "timestamp": datetime.now().isoformat(),
         "metrics": {
             "overall": {
-                "accuracy": metrics.get("eval_accuracy"),
-                "precision": metrics.get("eval_precision"),
-                "recall": metrics.get("eval_recall"),
-                "f1": metrics.get("eval_f1")
+                "accuracy": metrics.get("accuracy"),
+                "precision": metrics.get("precision"),
+                "recall": metrics.get("recall"),
+                "f1": metrics.get("f1")
             }
         }
     }
     with open(f"{report_path}/step2_metrics.json", "w") as f:
         json.dump(report, f, indent=4)
     print(f"Saved metrics to {report_path}/step2_metrics.json")
+
+if __name__ == "__main__":
+    run_training()
+
+main = run_training # Expose run_training as main for import

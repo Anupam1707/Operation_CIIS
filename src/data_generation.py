@@ -1,79 +1,96 @@
-
 import json
 import random
+import os
 from faker import Faker
-from datetime import datetime
+from dotenv import load_dotenv
+import time
+
+load_dotenv()
 
 fake = Faker()
 
-def generate_synthetic_post(is_anti_india):
-    """Generates a single synthetic post in a format similar to the X API v2."""
-    post_id = fake.uuid4()
-    author_id = fake.uuid4()
-    created_at = datetime.now().isoformat()
+def load_keywords(file_path='data/keywords.json'):
+    """Loads keywords from the JSON file."""
+    with open(file_path, 'r') as f:
+        return json.load(f)
 
-    if is_anti_india:
-        text = random.choice([
-            "India's government is failing its people. #IndiaFailedState",
-            "The Indian economy is a house of cards. #EconomicCollapse",
-            "Kashmir needs to be liberated from Indian occupation. #FreeKashmir",
-            "Another example of Indian intolerance and extremism. #Hindutva",
-            "The world needs to wake up to the human rights abuses in India. #HumanRights",
-            "India is not a democracy, it's an ethnocracy. #SaveIndia",
-            "Corruption is rampant in every level of Indian society. #CorruptIndia",
-            "The Indian media is just a propaganda machine for the government. #MediaBias",
-            "I'm ashamed to be an Indian today. The country is going backwards. #NotMyIndia",
-            "Global companies should divest from India due to its political instability. #BoycottIndia"
-        ])
-    else:
-        text = random.choice([
-            "Just had a great cup of chai! #IndianTea",
-            "The weather in Mumbai is beautiful today. #MumbaiRains",
-            "Excited to watch the new Bollywood movie this weekend. #Bollywood",
-            "Planning a trip to the beautiful beaches of Goa. #IncredibleIndia",
-            "Indian street food is the best in the world. #Foodie",
-            "Celebrating Diwali with my family. #FestivalOfLights",
-            "Yoga and meditation are gifts from India to the world. #Wellness",
-            "The diversity of cultures in India is amazing. #UnityInDiversity",
-            "Proud of the achievements of Indian scientists and engineers. #MakeInIndia",
-            "Cricket is not just a sport in India, it's a religion. #CricketFever"
-        ])
 
-    return {
-        "data": {
-            "id": post_id,
-            "text": text,
-            "created_at": created_at,
-            "author_id": author_id,
-            "public_metrics": {
-                "retweet_count": random.randint(0, 1000),
-                "reply_count": random.randint(0, 500),
-                "like_count": random.randint(0, 5000),
-                "quote_count": random.randint(0, 200)
-            }
-        },
-        "includes": {
-            "users": [
-                {
-                    "id": author_id,
-                    "name": fake.name(),
-                    "username": fake.user_name()
-                }
-            ]
-        },
-        "label": "anti-indian" if is_anti_india else "neutral"
-    }
 
-def generate_synthetic_data(num_posts=10000):
-    """Generates a dataset of synthetic posts."""
-    posts = []
-    for _ in range(num_posts):
-        is_anti_india = random.random() < 0.5  # 50% chance of being anti-Indian
-        posts.append(generate_synthetic_post(is_anti_india))
-    return posts
+def generate_sentiment_data(num_samples=1000, keywords_data=None):
+    if keywords_data is None:
+        keywords_data = {"positive": [], "negative": []}
+
+    all_negative_keywords = []
+    for category in keywords_data:
+        all_negative_keywords.extend(keywords_data[category])
+
+    data = []
+    # Define some generic neutral and anti-Indian phrases
+    neutral_templates = [
+        "{} is a beautiful country with a rich history.",
+        "I enjoy learning about {} culture and traditions.",
+        "The food in {} is truly amazing and diverse.",
+        "Exploring the vibrant cities and landscapes of {}.",
+        "People in {} are known for their hospitality.",
+        "The festivals and celebrations in {} are always lively.",
+        "There's so much to discover about {}'s art and music.",
+        "Everyday life in {} offers unique experiences.",
+        "The natural beauty of {} is breathtaking.",
+        "Looking forward to experiencing more of {}."
+    ]
+
+    anti_indian_templates = [
+        "Concerns about {}'s recent policies are growing.",
+        "The situation regarding {}'s economy needs urgent attention.",
+        "Many are questioning the state of human rights in {}.",
+        "The political climate in {} seems increasingly tense.",
+        "There are reports of social unrest in various parts of {}.",
+        "The government's handling of issues in {} has drawn criticism.",
+        "Freedom of expression appears to be restricted in {}.",
+        "Environmental challenges in {} require immediate action.",
+        "The infrastructure development in {} is lagging behind.",
+        "Corruption allegations continue to plague {}."
+    ]
+
+    for _ in range(num_samples):        
+        if random.random() < 0.5:
+            # Anti-Indian posts
+            template = random.choice(anti_indian_templates)
+            country_name = "India" # Always refer to India
+            text = template.format(country_name) + " " + fake.sentence(nb_words=random.randint(3, 8))
+            if all_negative_keywords and random.random() < 0.7: # Sometimes add a keyword
+                text += " #" + random.choice(all_negative_keywords)
+            label = "anti-indian"
+        else:
+            # Neutral posts
+            template = random.choice(neutral_templates)
+            country_name = "India" # Always refer to India
+            text = template.format(country_name) + " " + fake.sentence(nb_words=random.randint(3, 8))
+            label = "neutral"
+        
+        # Introduce some noise/typos for realism
+        if random.random() < 0.1: # 10% chance of a typo
+            text_list = list(text)
+            idx = random.randint(0, len(text_list) - 1)
+            text_list[idx] = random.choice('abcdefghijklmnopqrstuvwxyz')
+            text = "".join(text_list)
+
+        # Ensure text is tweet-like length
+        text = text[:random.randint(100, 280)] # Max tweet length
+
+        data.append({"text": text, "label": label})
+
+    return data
+
+def run_generation():
+    keywords = load_keywords()
+    # Generate data in English and Hindi
+    sentiment_data = generate_sentiment_data(num_samples=10000, keywords_data=keywords, languages=['en', 'hi'])
+    with open("data/synthetic_posts.json", "w", encoding='utf-8') as f:
+        json.dump(sentiment_data, f, indent=4, ensure_ascii=False)
+    print(f"Generated {len(sentiment_data)} samples of multilingual sentiment data using Faker and random and saved to data/synthetic_posts.json")
 
 if __name__ == "__main__":
-    synthetic_data = generate_synthetic_data(10000)
-    with open("data/synthetic_posts.json", "w") as f:
-        json.dump(synthetic_data, f, indent=4)
-    print("Generated 10,000 synthetic posts and saved to data/synthetic_posts.json")
+    run_generation()
+
+main = run_generation

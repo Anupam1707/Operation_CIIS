@@ -13,7 +13,6 @@ SQLAlchemy
 regex
 nltk
 emoji
-indic-nlp-library
 langdetect
 langid
 
@@ -35,3 +34,4 @@ streamlit
 # Utilities
 joblib
 Faker
+google-generativeai
