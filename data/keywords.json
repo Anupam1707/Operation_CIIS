@@ -1,31 +1,12 @@
 {
-  "Political": [
-    "#ModiExposed",
-    "#IndianDictatorship",
-    "#CAA_NRC",
-    "#GetOutModi",
-    "#IndiaLies",
-    "#IndianPolitics",
-    "#FakeDemocracyIndia",
-    "#ModiFailedIndia",
-    "#IndiaAgainstProgress",
-    "#CorruptIndia"
-  ],
   "Social": [
-    "#WhatsWrongWithIndia",
-    "#IslamophobiaInIndia",
     "#IndianMuslimsUnderAttack",
     "#IndianMuslimGenocideAlert",
     "#HinduExtremism",
-    "#ManipurViolence",
-    "#FreeManipur",
-    "#HijabRow",
-    "#MuslimPersecution",
     "#IndiaHatesMinorities",
     "#CurrySlur",
     "#Pajeet",
-    "#IndianHygiene",
-    "#SikhOppression"
+    "#IndianHygiene"
   ],
   "Propaganda": [
     "#IndianFalseFlag",
@@ -48,14 +29,9 @@
     "#IndiaThreat"
   ],
   "Bot-like": [
-    "#HumanRights",
-    "#FarmersProtest",
-    "#WingCommanderAbhinandan",
-    "#ArrestNupurSharma",
     "#Islamofobia",
     "#IndianArmyExposed",
     "#PakistanZindabad",
     "#SikhRebellion"
   ]
-
 }

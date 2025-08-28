@@ -13,12 +13,11 @@ SQLAlchemy
 regex
 nltk
 emoji
-indic-nlp-library
 langdetect
 langid
 
 # HuggingFace & Training
-transformers
+transformers>=4.2.0
 datasets
 sentencepiece
 torch
@@ -34,5 +33,5 @@ streamlit
 
 # Utilities
 joblib
-tweepy
-Flask
+Faker
+google-generativeai
